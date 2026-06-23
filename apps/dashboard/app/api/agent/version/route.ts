@@ -5,7 +5,7 @@ import { db, agentRelease } from "@onedesk/db";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-const GITHUB_REPO = process.env.GITHUB_RELEASE_REPO || "leftscape/o1nedesk";
+const GITHUB_REPO = process.env.GITHUB_RELEASE_REPO || "abysdev4/o1nedesk";
 
 function githubDownloadUrl(version: string): string {
   return `https://github.com/${GITHUB_REPO}/releases/download/v${version}/OneDeskAgent-Setup.exe`;

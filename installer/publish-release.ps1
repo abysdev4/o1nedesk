@@ -14,7 +14,7 @@
 param(
   [Parameter(Mandatory = $true)][string]$Version,
   [string]$Notes = "Atualizacao do agente",
-  [string]$GitHubRepo = "leftscape/o1nedesk"
+  [string]$GitHubRepo = "abysdev4/o1nedesk"
 )
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
