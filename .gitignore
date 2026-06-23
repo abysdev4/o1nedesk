@@ -1,0 +1,21 @@
+node_modules/
+.next/
+dist/
+out/
+build/
+*.log
+.env
+.env.local
+.env*.local
+.DS_Store
+# .NET
+agent/bin/
+agent/obj/
+agent/publish/
+# Inno Setup output
+installer/Output/
+*.user
+dist/
+
+.vercel
+tools/

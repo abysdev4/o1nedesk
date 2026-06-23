@@ -1,0 +1,24 @@
+{
+  "name": "onedesk",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OneDesk - Plataforma de helpdesk com acesso remoto, terminal, captura de tela e estatisticas",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "db:push": "npm -w @onedesk/db run push",
+    "db:seed": "npm -w @onedesk/db run seed",
+    "dev:dashboard": "npm -w @onedesk/dashboard run dev",
+    "dev:hub": "npm -w @onedesk/hub run dev",
+    "build:dashboard": "npm -w @onedesk/dashboard run build",
+    "build:hub": "npm -w @onedesk/hub run build",
+    "start:dashboard": "npm -w @onedesk/dashboard run start",
+    "start:hub": "npm -w @onedesk/hub run start",
+    "start": "npm -w @onedesk/hub run start"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,81 @@
+name: Release Agent
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Publish OneDesk Agent
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          dotnet publish agent/OneDeskAgent.csproj -c Release -r win-x64 `
+            -p:PublishSingleFile=true -p:SelfContained=true `
+            -p:IncludeNativeLibrariesForSelfExtract=true `
+            --output agent/publish
+          Copy-Item agent/publish/OneDeskAgent.exe dist/OneDeskAgent-Setup.exe -Force
+
+      - name: SHA256
+        id: sha
+        shell: pwsh
+        run: |
+          $hash = (Get-FileHash dist/OneDeskAgent-Setup.exe -Algorithm SHA256).Hash.ToLower()
+          "hash=$hash" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "sha256: $hash"
+
+      - name: Version from tag
+        id: ver
+        shell: pwsh
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag -replace '^v',''
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: OneDesk Agent ${{ steps.ver.outputs.version }}
+          body: |
+            OneDesk Agent v${{ steps.ver.outputs.version }}
+
+            SHA256: `${{ steps.sha.outputs.hash }}`
+
+            Instalador: `OneDeskAgent-Setup.exe` (~147 MB)
+          files: dist/OneDeskAgent-Setup.exe
+          fail_on_unmatched_files: true
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Update release manifest (Neon)
+        shell: pwsh
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          $ver = "${{ steps.ver.outputs.version }}"
+          $sha = "${{ steps.sha.outputs.hash }}"
+          $url = "https://github.com/${{ github.repository }}/releases/download/${{ steps.ver.outputs.tag }}/OneDeskAgent-Setup.exe"
+          npm -w "@onedesk/db" run release -- $ver $sha $url "Release via GitHub Actions"

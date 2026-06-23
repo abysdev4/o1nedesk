@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>OneDeskAgent</AssemblyName>
+    <RootNamespace>OneDesk.Agent</RootNamespace>
+    <Version>1.0.0</Version>
+    <Product>OneDesk Agent</Product>
+    <Company>OneData</Company>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>..\icon.ico</ApplicationIcon>
+    <SelfContained>true</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableComHosting>false</EnableComHosting>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="assets\logo-white.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="System.Drawing.Common" Version="9.0.0" />
+    <PackageReference Include="System.Management" Version="9.0.0" />
+    <PackageReference Include="SIPSorcery" Version="8.0.23" />
+    <PackageReference Include="SIPSorceryMedia.Abstractions" Version="8.0.12" />
+    <PackageReference Include="SIPSorceryMedia.Encoders" Version="10.0.4" />
+  </ItemGroup>
+
+</Project>

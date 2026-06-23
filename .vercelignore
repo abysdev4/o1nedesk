@@ -1,0 +1,14 @@
+/agent
+/dist
+/tools
+/installer
+/icon.ico
+/icon.png
+/logo.png
+/apps/dashboard/public/OneDeskAgent-Setup.exe
+*.exe
+.git
+node_modules
+**/.next
+**/bin
+**/obj

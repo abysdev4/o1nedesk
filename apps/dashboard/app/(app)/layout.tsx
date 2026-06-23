@@ -1,0 +1,21 @@
+import { requireSession } from "@/lib/auth";
+import Sidebar from "@/components/Sidebar";
+import Header from "@/components/Header";
+import { HubProvider } from "@/components/HubProvider";
+
+export const dynamic = "force-dynamic";
+
+export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const user = await requireSession();
+  return (
+    <HubProvider>
+      <div className="flex h-screen overflow-hidden">
+        <Sidebar user={{ name: user.name, email: user.email, role: user.role }} />
+        <div className="flex-1 flex flex-col min-w-0">
+          <Header />
+          <main className="flex-1 overflow-y-auto">{children}</main>
+        </div>
+      </div>
+    </HubProvider>
+  );
+}
