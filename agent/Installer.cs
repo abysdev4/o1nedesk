@@ -83,36 +83,47 @@ public static class Installer
             ReplaceInstalledExe(sourceExe);
         }
 
-        // 2) Grava config preservando valores existentes (nao sobrescreve URL/token no update)
-        var cfgPath = Path.Combine(DataDir, "config.json");
-        var cfg = AgentConfig.LoadFromFile(cfgPath);
-        File.WriteAllText(cfgPath, JsonSerializer.Serialize(cfg, new JsonSerializerOptions { WriteIndented = true }));
-
-        // 3) Auto-start: chave Run (HKLM)
+        // Passos 2-5 nao podem deixar a maquina offline: matamos o agente+watchdog acima,
+        // entao QUALQUER falha aqui ainda precisa religar o agente (try/finally).
         try
         {
-            using var key = Registry.LocalMachine.CreateSubKey(RunKey);
-            key?.SetValue("OneDeskAgent", $"\"{InstalledExe}\"");
-        }
-        catch { }
+            // 2) Grava config preservando valores existentes (nao sobrescreve URL/token no update)
+            try
+            {
+                var cfgPath = Path.Combine(DataDir, "config.json");
+                var cfg = AgentConfig.LoadFromFile(cfgPath);
+                File.WriteAllText(cfgPath, JsonSerializer.Serialize(cfg, new JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch { }
 
-        // 4) Auto-start: Tarefa Agendada no logon (robustez)
-        try
+            // 3) Auto-start: chave Run (HKLM)
+            try
+            {
+                using var key = Registry.LocalMachine.CreateSubKey(RunKey);
+                key?.SetValue("OneDeskAgent", $"\"{InstalledExe}\"");
+            }
+            catch { }
+
+            // 4) Auto-start: Tarefa Agendada no logon (robustez)
+            try
+            {
+                Run("schtasks", $"/Delete /TN {TaskName} /F", true);
+                Run("schtasks", $"/Create /TN {TaskName} /TR \"\\\"{InstalledExe}\\\"\" /SC ONLOGON /RL LIMITED /F", true);
+            }
+            catch { }
+
+            // 5) Tarefa elevada para updates futuros (sem UAC a cada versao)
+            try { RegisterUpdateTask(); } catch { }
+        }
+        finally
         {
-            Run("schtasks", $"/Delete /TN {TaskName} /F", true);
-            Run("schtasks", $"/Create /TN {TaskName} /TR \"\\\"{InstalledExe}\\\"\" /SC ONLOGON /RL LIMITED /F", true);
+            // 6) SEMPRE libera a sentinela e o pending — senao o watchdog sai na hora.
+            try { File.Delete(Path.Combine(DataDir, "stop.flag")); } catch { }
+            try { if (File.Exists(UpdateManager.PendingPath)) File.Delete(UpdateManager.PendingPath); } catch { }
+
+            // 7) SEMPRE religa o agente (mesmo se 2-5 falharam) — nunca deixa offline.
+            StartInstalled();
         }
-        catch { }
-
-        // 5) Tarefa elevada para updates futuros (sem UAC a cada versao)
-        RegisterUpdateTask();
-
-        // 6) Garante que nao ha sentinela de parada antiga
-        try { File.Delete(Path.Combine(DataDir, "stop.flag")); } catch { }
-        try { if (File.Exists(UpdateManager.PendingPath)) File.Delete(UpdateManager.PendingPath); } catch { }
-
-        // 7) Inicia agora na sessao do usuario (o agente sobe o watchdog sozinho)
-        StartInstalled();
     }
 
     /// <summary>Tarefa ONCE/HIGHEST — disparada pelo agente apos download do update.</summary>
@@ -145,11 +156,32 @@ public static class Installer
 
     private static void StartInstalled()
     {
-        // Tenta iniciar via tarefa agendada (sessao do usuario). Fallback: start direto.
-        if (Run("schtasks", $"/Run /TN {TaskName}", true)) return;
+        if (!File.Exists(InstalledExe)) return; // nada para iniciar
+
+        // 1) Inicia na sessao do usuario via tarefa ONLOGON (tray + captura de tela corretos).
+        Run("schtasks", $"/Run /TN {TaskName}", true);
+
+        // 2) Inicia tambem direto — barato e cobre o caso de a tarefa nao subir de fato.
+        //    O mutex single-instance garante que so um agente fique de pe (sem duplicidade).
         try
         {
             Process.Start(new ProcessStartInfo { FileName = InstalledExe, UseShellExecute = true });
+        }
+        catch { }
+
+        // 3) Rede de seguranca: garante o watchdog vivo na MESMA sessao deste instalador.
+        //    Se o agente nao subir por qualquer motivo, o watchdog o reinicia em ~5s,
+        //    impedindo a maquina de ficar offline apos a troca de binario.
+        try
+        {
+            if (Mutex.TryOpenExisting("OneDeskWatchdog_Instance", out var m)) { m.Dispose(); return; }
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = InstalledExe,
+                Arguments = "--watchdog",
+                UseShellExecute = false,
+                CreateNoWindow = true,
+            });
         }
         catch { }
     }
