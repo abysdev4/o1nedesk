@@ -69,19 +69,18 @@ public static class Installer
         Directory.CreateDirectory(InstallDir);
         Directory.CreateDirectory(DataDir);
 
-        // 1) Copia o exe para Program Files
+        // 1) Substitui o exe em Program Files SEM duplicidade e sem deixar a versao antiga subir.
         if (!string.Equals(Path.GetFullPath(sourceExe), Path.GetFullPath(InstalledExe), StringComparison.OrdinalIgnoreCase))
         {
-            try
-            {
-                foreach (var p in Process.GetProcessesByName("OneDeskAgent"))
-                {
-                    if (p.Id != Environment.ProcessId)
-                        try { p.Kill(); p.WaitForExit(2000); } catch { }
-                }
-            }
-            catch { }
-            File.Copy(sourceExe, InstalledExe, true);
+            // Trava o watchdog ANTES de matar: o stop.flag impede que ele relance o
+            // agente antigo durante a troca (a sentinela e removida no passo 6).
+            try { File.WriteAllText(Path.Combine(DataDir, "stop.flag"), DateTime.UtcNow.ToString("o")); } catch { }
+
+            // Encerra agente + watchdog (mesma imagem) ate nao sobrar nenhum.
+            KillOtherAgents();
+
+            // Copia o binario novo por cima, tolerando lock temporario.
+            ReplaceInstalledExe(sourceExe);
         }
 
         // 2) Grava config preservando valores existentes (nao sobrescreve URL/token no update)
@@ -176,6 +175,59 @@ public static class Installer
         catch { }
         try { if (Directory.Exists(InstallDir)) Directory.Delete(InstallDir, true); } catch { }
         try { if (Directory.Exists(DataDir)) Directory.Delete(DataDir, true); } catch { }
+    }
+
+    /// <summary>Encerra todas as instancias do agente/watchdog (exceto este instalador),
+    /// repetindo ate nenhuma sobrar — cobre a corrida em que o watchdog relanca o antigo.</summary>
+    private static void KillOtherAgents()
+    {
+        for (int attempt = 0; attempt < 12; attempt++)
+        {
+            var others = Process.GetProcessesByName("OneDeskAgent")
+                .Where(p => p.Id != Environment.ProcessId)
+                .ToArray();
+            if (others.Length == 0) return;
+
+            foreach (var p in others)
+                try { p.Kill(true); } catch { }
+            foreach (var p in others)
+            {
+                try { p.WaitForExit(1500); } catch { }
+                try { p.Dispose(); } catch { }
+            }
+            Thread.Sleep(250);
+        }
+    }
+
+    /// <summary>Copia o exe novo por cima do instalado, com retentativa. Se o destino
+    /// estiver travado, renomeia o antigo (.old) e copia o novo no lugar.</summary>
+    private static void ReplaceInstalledExe(string sourceExe)
+    {
+        for (int i = 0; i < 12; i++)
+        {
+            try
+            {
+                File.Copy(sourceExe, InstalledExe, true);
+                return;
+            }
+            catch
+            {
+                try
+                {
+                    if (File.Exists(InstalledExe))
+                    {
+                        var bak = InstalledExe + ".old";
+                        try { File.Delete(bak); } catch { }
+                        File.Move(InstalledExe, bak);          // Windows permite mover exe travado
+                        File.Copy(sourceExe, InstalledExe, true);
+                        try { File.Delete(bak); } catch { }
+                        return;
+                    }
+                }
+                catch { }
+                Thread.Sleep(400);
+            }
+        }
     }
 
     private static bool Run(string file, string args, bool wait)

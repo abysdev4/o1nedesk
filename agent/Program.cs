@@ -275,10 +275,19 @@ sealed class TrayContext : ApplicationContext
         try
         {
             var info = await UpdateManager.FetchLatestAsync(_cfg);
-            if (info == null) return;
+            if (info == null)
+            {
+                // Aviso forcado pelo dashboard, mas ja esta na versao mais recente:
+                // devolve status para o tecnico nao ficar preso em "aguardando cliente".
+                if (adminRequested) _client.ReportUpdateStatus("already_latest");
+                return;
+            }
             _ui.Post(_ => ShowUpdatePrompt(info.LatestVersion, adminRequested), null);
         }
-        catch { }
+        catch
+        {
+            if (adminRequested) _client.ReportUpdateStatus("failed:check");
+        }
     }
 
     private void ShowUpdatePrompt(string? latestVersion, bool adminRequested)

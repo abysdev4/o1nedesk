@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useHub } from "./HubProvider";
 import { isOutdated } from "@/lib/version";
-import { ArrowUpCircle, CheckCircle2, RefreshCw, AlertTriangle } from "lucide-react";
+import { CheckCircle2, RefreshCw, AlertTriangle, BellRing } from "lucide-react";
 
 const PHASE_LABEL: Record<string, string> = {
   checking: "Verificando versão…",
@@ -113,19 +113,32 @@ export default function UpdateCard({ machine, online }: { machine: any; online: 
         <p className="text-xs text-muted mb-2">{labelForPhase(phase)}</p>
       )}
 
-      {outdated ? (
-        <>
-          <button onClick={forceUpdate} disabled={!online || requested} className="btn-primary w-full disabled:opacity-50">
-            <ArrowUpCircle size={15} /> {requested ? "Aguardando cliente…" : "Solicitar atualização"}
-          </button>
-          <p className="text-[11px] text-muted mt-2 leading-relaxed">
-            Abre um aviso obrigatório no PC do usuário. Ele precisa clicar em &quot;Atualizar agora&quot; para
-            baixar e instalar automaticamente. A partir da v1.2.0, updates futuros não pedem UAC de novo.
-          </p>
-        </>
-      ) : (
-        <p className="text-xs text-muted">O agente está na versão mais recente. Atualizações chegam automaticamente.</p>
-      )}
+      <button
+        onClick={forceUpdate}
+        disabled={!online || requested || !outdated}
+        className="btn-primary w-full disabled:opacity-50"
+        title={
+          outdated
+            ? "Envia um aviso sobreposto ao PC do usuário com a nova versão"
+            : "Disponível apenas quando o agente está desatualizado"
+        }
+      >
+        <BellRing size={15} /> {requested ? "Aguardando cliente…" : "AVISO UPDATE"}
+      </button>
+      <p className="text-[11px] text-muted mt-2 leading-relaxed">
+        {outdated ? (
+          <>
+            Abre um <strong>aviso sobreposto</strong> no PC do usuário, por cima de qualquer janela aberta,
+            com a nova versão. Ele clica em &quot;Atualizar agora&quot; e o download, instalação e reinício são
+            automáticos. A partir da v1.2.0, updates futuros não pedem UAC de novo.
+          </>
+        ) : (
+          <>
+            O agente está na versão mais recente. O aviso só pode ser enviado quando há uma versão mais nova
+            disponível.
+          </>
+        )}
+      </p>
     </div>
   );
 }

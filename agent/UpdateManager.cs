@@ -12,7 +12,7 @@ namespace OneDesk.Agent;
 /// </summary>
 public static class UpdateManager
 {
-    public const string CurrentVersion = "1.2.1";
+    public const string CurrentVersion = "1.2.2";
 
     private static readonly HttpClient _http = new() { Timeout = TimeSpan.FromMinutes(8) };
     private static bool _updating;
@@ -278,4 +278,5 @@ public static class UpdateManager
     private static extern IntPtr ShellExecute(
         IntPtr hwnd, string lpOperation, string lpFile, string lpParameters, string? lpDirectory, int nShowCmd);
 }
+
 
